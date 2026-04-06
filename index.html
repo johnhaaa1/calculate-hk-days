@@ -45,12 +45,32 @@
                 </table>
             </div>
         </div>
+
+        <!-- 新增：赞赏支持（点击显示微信赞赏码） -->
+        <div class="mt-6 pt-4 border-t border-gray-200 text-center">
+            <button onclick="toggleDonate()" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm w-full">
+                💖 工具免费，点击支持开发者
+            </button>
+            <div id="donateCode" class="hidden mt-3">
+                <p class="text-xs text-gray-500 mb-2">微信赞赏码</p>
+                <img src="https://raw.githubusercontent.com/johnhaaa1/calculate-hk-days/main/images/supportQR.jpg"
+                     alt="微信赞赏码"
+                     class="w-28 h-28 mx-auto rounded border border-gray-200">
+                <p class="text-xs text-gray-400 mt-2">感谢你的支持🙏</p>
+            </div>
+        </div>
     </div>
 
 <script>
+    // 新增：赞赏码显示/隐藏切换
+    function toggleDonate() {
+        const donateDiv = document.getElementById('donateCode');
+        donateDiv.classList.toggle('hidden');
+    }
+
     // 初始化PDF.js
     const pdfjsLib = window['pdfjs-dist/build/pdf'];
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    pdfjsLib.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
     let pdfText = "";
 
@@ -85,10 +105,8 @@
         }
     }
 
-    // 3. 100%还原你的原版计算逻辑
-    // 3. 100%还原你的原版计算逻辑（仅修复日期计算+配对）
+    // 3. 计算逻辑（完全保留你的原版代码）
     function calculate(text) {
-        // 提取出入境记录
         const records = [];
         const regex = /(出境|入境)[^\d]*(\d{4}-\d{2}-\d{2})/g;
         let match;
@@ -96,21 +114,17 @@
             records.push([match[1], match[2]]);
         }
 
-        // ====================== 修复开始：严格复刻你的Python配对逻辑 ======================
-        // 日期解析（修复JS日期时区bug，和Python计算结果一致）
         function str2dt(d) {
             const [y, m, d_] = d.split('-');
             return new Date(Number(y), Number(m)-1, Number(d_));
         }
 
-        // 你的原版逻辑：剔除首尾 + 奇偶位配对 + 反转
         const valid = records.slice(1, -1);
-        const exit_recs = valid.filter((_, i) => i % 2 === 1);  // 奇数索引：出境
-        const entry_recs = valid.filter((_, i) => i % 2 === 0); // 偶数索引：入境
+        const exit_recs = valid.filter((_, i) => i % 2 === 1);
+        const entry_recs = valid.filter((_, i) => i % 2 === 0);
         const pdf_pairs = exit_recs.map((s, i) => [s, entry_recs[i]]);
-        const actual_pairs = pdf_pairs.reverse(); // 反转成正序
+        const actual_pairs = pdf_pairs.reverse();
 
-        // 计算天数（修复日期计算）
         const final = [];
         let total = 0;
         for (let i = 0; i < actual_pairs.length; i++) {
@@ -118,12 +132,10 @@
             const out = s_rec[1];
             const inDate = e_rec[1];
 
-            // 精准计算自然日天数（和Python完全一致）
             const s_dt = str2dt(out);
             const e_dt = str2dt(inDate);
             let days = Math.floor((e_dt - s_dt) / (1000 * 60 * 60 * 24)) + 1;
 
-            // 你的重复扣减规则：当天入境=下一段出境，扣1天
             if (i < actual_pairs.length - 1) {
                 const next_out = actual_pairs[i+1][0][1];
                 if (inDate === next_out) {
@@ -135,9 +147,7 @@
             total += days;
             final.push([i+1, out, inDate, days]);
         }
-        // ====================== 修复结束 ======================
 
-        // 显示结果（原代码不动）
         document.getElementById('result').classList.remove('hidden');
         document.getElementById('total').innerText = total;
         document.getElementById('diff').innerText = Math.max(180 - total, 0);
